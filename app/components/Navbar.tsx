@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function Navbar({ active }: { active: "home" | "about" }) {
+export default function Navbar({ active }: { active: "home" | "about" | "dashboard" }) {
   return (
     <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-sm border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-8 py-4 flex items-center justify-between">
@@ -19,6 +19,16 @@ export default function Navbar({ active }: { active: "home" | "about" }) {
           </Link>
         </nav>
         <div className="flex items-center gap-6">
+          <Link
+            href="/dashboard"
+            className={
+              active === "dashboard"
+                ? "text-indigo-600 font-semibold text-sm"
+                : "text-slate-500 font-medium text-sm hover:text-indigo-600 transition-colors"
+            }
+          >
+            Dashboard
+          </Link>
           <Link
             href="/about"
             className={

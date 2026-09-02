@@ -17,7 +17,7 @@ const features = [
 const testimonials = [
   { quote: "We cut our average deal cycle by three weeks after switching. The automation alone paid for itself.", name: "Dana Whitfield", role: "VP Sales, Northwind" },
   { quote: "Finally a CRM our reps actually want to use. Setup took an afternoon, not a quarter.", name: "Marcus Ibe", role: "Sales Director, Vertex" },
-  { quote: "The pipeline visibility changed how we forecast. Leadership finally trusts the numbers.", name: "Priya Anand", role: "CRO, Solace" },
+  { quote: "The pipeline visibility changed how we forecast. Leadership finally trusts the numbers.", name: "Dan White", role: "CRO, Solace" },
 ];
 
 const plans = [
