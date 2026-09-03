@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1788415134841,
+    "name": "aarish",
+    "email": "a@gmail.com",
+    "company": "ab",
+    "status": "Lead"
+  },
+  {
+    "id": 1788415153632,
+    "name": "waqas",
+    "email": "w@gmail.com",
+    "company": "gh",
+    "status": "Active"
+  }
+]
