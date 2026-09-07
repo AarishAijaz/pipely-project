@@ -18,7 +18,7 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Customers", url: "/dashboard", icon: Users },
+  { title: "Customers", url: "/dashboard/customers", icon: Users },
 ];
 
 const siteItems = [

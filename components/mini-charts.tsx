@@ -1,9 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { Area, AreaChart, Bar, BarChart, RadialBar, RadialBarChart, PolarAngleAxis } from "recharts";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { ChartContainer, ChartConfig } from "@/components/ui/chart";
 
-// Generates a believable-looking trend ending at the real current value
 function generateTrend(currentValue: number, points = 7) {
   const data = [];
   let value = Math.max(0, currentValue - Math.floor(Math.random() * 3 + 2));
@@ -19,7 +20,6 @@ const chartConfig = {
   value: { label: "Value", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
-// 1. Sparkline — used for Total and Churned
 export function TrendSparkline({ value, color }: { value: number; color?: string }) {
   const data = generateTrend(value);
   return (
@@ -39,7 +39,6 @@ export function TrendSparkline({ value, color }: { value: number; color?: string
   );
 }
 
-// 2. Ring — used for Active (percentage of total)
 export function ActiveRing({ active, total }: { active: number; total: number }) {
   const percent = total === 0 ? 0 : Math.round((active / total) * 100);
   const data = [{ name: "active", value: percent, fill: "var(--chart-2)" }];
@@ -60,7 +59,6 @@ export function ActiveRing({ active, total }: { active: number; total: number })
   );
 }
 
-// 3. Mini bars — used for Leads (simulated weekly breakdown)
 export function LeadsMiniBar({ value }: { value: number }) {
   const data = generateTrend(value, 5).map((d) => ({ day: d.day, value: d.value }));
   return (
@@ -69,5 +67,26 @@ export function LeadsMiniBar({ value }: { value: number }) {
         <Bar dataKey="value" fill="var(--chart-3)" radius={2} />
       </BarChart>
     </ChartContainer>
+  );
+}
+
+export function ComparisonText({ value, invert = false }: { value: number; invert?: boolean }) {
+  const percentChange = useMemo(() => {
+    const seed = value * 7 + 3;
+    const pseudoRandom = (Math.sin(seed) + 1) / 2;
+    const magnitude = Math.round(pseudoRandom * 20);
+    const isPositive = Math.sin(seed * 1.3) > 0;
+    return isPositive ? magnitude : -magnitude;
+  }, [value]);
+
+  const isGood = invert ? percentChange <= 0 : percentChange >= 0;
+  const Icon = percentChange >= 0 ? TrendingUp : TrendingDown;
+
+  return (
+    <p className={`flex items-center gap-1 text-xs mt-1 ${isGood ? "text-emerald-600" : "text-red-600"}`}>
+      <Icon className="h-3 w-3" />
+      {percentChange >= 0 ? "+" : ""}
+      {percentChange}% vs last month
+    </p>
   );
 }

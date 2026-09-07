@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 
 export default function Navbar({ active }: { active: "home" | "about" | "dashboard" }) {
   return (
@@ -39,9 +40,16 @@ export default function Navbar({ active }: { active: "home" | "about" | "dashboa
           >
             About
           </Link>
-          <button className="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg shadow-lg shadow-indigo-600/30 hover:-translate-y-0.5 hover:shadow-xl transition-all">
-            Start Free Trial
-          </button>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <button className="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white font-semibold text-sm px-5 py-2.5 rounded-lg shadow-lg shadow-indigo-600/30 hover:-translate-y-0.5 hover:shadow-xl transition-all">
+                Sign In
+              </button>
+            </SignInButton>
+          </Show>
+          <Show when="signed-in">
+            <UserButton />
+          </Show>
         </div>
       </div>
     </header>
