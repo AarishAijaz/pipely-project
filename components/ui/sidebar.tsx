@@ -1,4 +1,5 @@
 "use client"
+import { Slot } from "@radix-ui/react-slot"
 
 import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
@@ -498,6 +499,7 @@ const sidebarMenuButtonVariants = cva(
 
 function SidebarMenuButton({
   render,
+  asChild = false,
   isActive = false,
   variant = "default",
   size = "default",
@@ -506,6 +508,7 @@ function SidebarMenuButton({
   ...props
 }: useRender.ComponentProps<"button"> &
   React.ComponentProps<"button"> & {
+    asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
   } & VariantProps<typeof sidebarMenuButtonVariants>) {
