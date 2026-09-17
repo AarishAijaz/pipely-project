@@ -36,7 +36,7 @@ const statusVariant: Record<Customer["status"], "default" | "secondary" | "destr
 };
 
 const STORAGE_KEY = "pipely_customers";
-type SortKey = "name" | "email" | "company" | "status";
+type SortKey = "name" | "email" | "phone" | "company" | "status";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -72,7 +72,8 @@ export default function CustomersPage() {
         term === "" ||
         c.name.toLowerCase().includes(term) ||
         c.email.toLowerCase().includes(term) ||
-        c.company.toLowerCase().includes(term);
+        c.company.toLowerCase().includes(term) ||
+        (c.phone ?? "").toLowerCase().includes(term);
       return matchesStatus && matchesSearch;
     });
   }, [customers, searchTerm, statusFilter]);
@@ -80,8 +81,8 @@ export default function CustomersPage() {
   const sortedCustomers = useMemo(() => {
     if (!sortKey) return filteredCustomers;
     return [...filteredCustomers].sort((a, b) => {
-      const aVal = a[sortKey].toLowerCase();
-      const bVal = b[sortKey].toLowerCase();
+      const aVal = (a[sortKey] ?? "").toLowerCase();
+      const bVal = (b[sortKey] ?? "").toLowerCase();
       if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
       if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
       return 0;
@@ -120,6 +121,8 @@ export default function CustomersPage() {
     setDialogOpen(false);
   }
 
+  const [newCustomer, setNewCustomer] = useState<Omit<Customer, "id" | "created_at">>({name: "", email: "", phone: "", company: "", status: "Lead"});
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -136,7 +139,7 @@ export default function CustomersPage() {
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Input
-          placeholder="Search by name, email, or company..."
+          placeholder="Search by name, email, phone, or company..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="sm:max-w-sm"
@@ -175,6 +178,11 @@ export default function CustomersPage() {
                 </button>
               </TableHead>
               <TableHead>
+                <button onClick={() => handleSort("phone")} className="flex items-center gap-1 hover:text-foreground">
+                  Phone <ArrowUpDown className="h-3.5 w-3.5" />
+                </button>
+              </TableHead>
+              <TableHead>
                 <button onClick={() => handleSort("company")} className="flex items-center gap-1 hover:text-foreground">
                   Company <ArrowUpDown className="h-3.5 w-3.5" />
                 </button>
@@ -190,7 +198,7 @@ export default function CustomersPage() {
           <TableBody>
             {sortedCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                   {customers.length === 0
                     ? "No customers yet — click \"Add Customer\" to get started."
                     : "No customers match your filters."}
@@ -201,6 +209,7 @@ export default function CustomersPage() {
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.name}</TableCell>
                   <TableCell className="text-muted-foreground">{c.email}</TableCell>
+                  <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{c.company || "—"}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[c.status]}>{c.status}</Badge>

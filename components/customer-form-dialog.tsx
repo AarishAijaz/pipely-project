@@ -23,9 +23,14 @@ export type Customer = {
   id: number;
   name: string;
   email: string;
+  phone: string;
   company: string;
   status: "Lead" | "Active" | "Churned";
 };
+
+// Must start with 0 and be exactly 11 digits total, no other characters.
+// e.g. "03001234567"
+const PHONE_PATTERN = "^0[0-9]{10}$";
 
 export function CustomerFormDialog({
   open,
@@ -40,6 +45,7 @@ export function CustomerFormDialog({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [status, setStatus] = useState<Customer["status"]>("Lead");
 
@@ -47,11 +53,13 @@ export function CustomerFormDialog({
     if (editingCustomer) {
       setName(editingCustomer.name);
       setEmail(editingCustomer.email);
+      setPhone(editingCustomer.phone ?? "");
       setCompany(editingCustomer.company);
       setStatus(editingCustomer.status);
     } else {
       setName("");
       setEmail("");
+      setPhone("");
       setCompany("");
       setStatus("Lead");
     }
@@ -59,8 +67,8 @@ export function CustomerFormDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
-    onSave({ name, email, company, status });
+    if (!name.trim() || !email.trim() || !phone.trim() || !company.trim()) return;
+    onSave({ name, email, phone, company, status });
   }
 
   return (
@@ -79,8 +87,21 @@ export function CustomerFormDialog({
             <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@company.com" required />
           </div>
           <div className="grid gap-2">
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="03001234567"
+              pattern={PHONE_PATTERN}
+              title="Enter a valid phone number: 11 digits, starting with 0 (e.g. 03001234567)"
+              required
+            />
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="company">Company</Label>
-            <Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Inc." />
+            <Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Inc." required />
           </div>
           <div className="grid gap-2">
             <Label>Status</Label>
