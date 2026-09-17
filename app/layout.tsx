@@ -12,16 +12,17 @@ export const metadata = {
   description: "Track leads, automate follow-ups, and close deals faster.",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-      <html lang="en" className={cn("font-sans", geist.variable)}>
-        <body>
-          <ClerkProvider>{children}</ClerkProvider>
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={cn("font-sans", geist.variable)}
+      >
+        <body className="min-h-full flex flex-col">
+          {children}
         </body>
       </html>
+    </ClerkProvider>
   );
 }
