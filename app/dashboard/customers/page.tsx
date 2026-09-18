@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CustomerFormDialog, Customer } from "@/components/customer-form-dialog";
+import { supabase } from "@/lib/supabase";
 
 const statusVariant: Record<Customer["status"], "default" | "secondary" | "destructive"> = {
   Lead: "secondary",
@@ -35,7 +36,6 @@ const statusVariant: Record<Customer["status"], "default" | "secondary" | "destr
   Churned: "destructive",
 };
 
-const STORAGE_KEY = "pipely_customers";
 type SortKey = "name" | "email" | "phone" | "company" | "status";
 
 export default function CustomersPage() {
@@ -49,20 +49,23 @@ export default function CustomersPage() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setCustomers(JSON.parse(saved));
-    } catch (err) {
-      console.error(err);
+  // Load customers from Supabase on mount
+useEffect(() => {
+  async function loadCustomers() {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+    } else {
+      setCustomers(data ?? []);
     }
     setIsLoaded(true);
+  }
+  loadCustomers();
   }, []);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
-  }, [customers, isLoaded]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
@@ -108,20 +111,46 @@ export default function CustomersPage() {
     setDialogOpen(true);
   }
 
-  function handleDelete(id: number) {
+  async function handleDelete(id: number) {
+    const { error } = await supabase.from("customers").delete().eq("id", id);
+    if (error) {
+      console.error(error);
+      return;
+    }
     setCustomers((prev) => prev.filter((c) => c.id !== id));
   }
 
-  function handleSave(data: Omit<Customer, "id">) {
+  async function handleSave(data: Omit<Customer, "id" | "created_at">) {
     if (editingCustomer) {
-      setCustomers((prev) => prev.map((c) => (c.id === editingCustomer.id ? { ...c, ...data } : c)));
+      const { data: updated, error } = await supabase
+        .from("customers")
+        .update(data)
+        .eq("id", editingCustomer.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === editingCustomer.id ? updated : c))
+      );
     } else {
-      setCustomers((prev) => [...prev, { id: Date.now(), ...data }]);
+      const { data: inserted, error } = await supabase
+        .from("customers")
+        .insert(data)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+      setCustomers((prev) => [inserted, ...prev]);
     }
     setDialogOpen(false);
   }
-
-  const [newCustomer, setNewCustomer] = useState<Omit<Customer, "id" | "created_at">>({name: "", email: "", phone: "", company: "", status: "Lead"});
 
   return (
     <div className="flex flex-col gap-6">

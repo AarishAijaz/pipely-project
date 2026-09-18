@@ -21,10 +21,11 @@ import {
 
 export type Customer = {
   id: number;
+  created_at?: string;
   name: string;
+  company: string;
   email: string;
   phone: string;
-  company: string;
   status: "Lead" | "Active" | "Churned";
 };
 
