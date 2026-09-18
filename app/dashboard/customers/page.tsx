@@ -28,7 +28,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CustomerFormDialog, Customer } from "@/components/customer-form-dialog";
-import { supabase } from "@/lib/supabase";
+import { useClerkSupabaseClient } from "@/lib/supabase";
+import { useUser } from "@clerk/nextjs";
 
 const statusVariant: Record<Customer["status"], "default" | "secondary" | "destructive"> = {
   Lead: "secondary",
@@ -39,6 +40,8 @@ const statusVariant: Record<Customer["status"], "default" | "secondary" | "destr
 type SortKey = "name" | "email" | "phone" | "company" | "status";
 
 export default function CustomersPage() {
+  const {isLoaded: userLoaded, user}= useUser();
+  const supabase = useClerkSupabaseClient();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -49,23 +52,26 @@ export default function CustomersPage() {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  // Load customers from Supabase on mount
-useEffect(() => {
-  async function loadCustomers() {
-    const { data, error } = await supabase
-      .from("customers")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-    } else {
-      setCustomers(data ?? []);
+  useEffect(() => {
+    if (!userLoaded) return;
+    if (!user) {
+      setCustomers([]);
+      setIsLoaded(true);
+      return;
     }
-    setIsLoaded(true);
-  }
-  loadCustomers();
-  }, []);
+
+    async function loadCustomers() {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) console.error(error);
+      else setCustomers(data ?? []);
+      setIsLoaded(true);
+    }
+    loadCustomers();
+  }, [userLoaded, user]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((c) => {
