@@ -66,7 +66,8 @@ export default function CustomersPage() {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) console.error(error);
+      // if (error) console.error(error);
+      if (error) console.error("Database Error:", error.message, error.details, error.hint);
       else setCustomers(data ?? []);
       setIsLoaded(true);
     }
