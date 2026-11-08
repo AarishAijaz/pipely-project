@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Mic, MicOff, Volume2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSpeech } from "@/lib/use-speech";
+import { parseSpokenEmail, parseSpokenPhone, parseSpokenStatus } from "@/lib/voice-parsing";
 
 export type Customer = {
   id: number;
@@ -32,6 +35,7 @@ export type Customer = {
 // Must start with 0 and be exactly 11 digits total, no other characters.
 // e.g. "03001234567"
 const PHONE_PATTERN = "^0[0-9]{10}$";
+const PHONE_REGEX = new RegExp(PHONE_PATTERN);
 
 export function CustomerFormDialog({
   open,
@@ -50,6 +54,12 @@ export function CustomerFormDialog({
   const [company, setCompany] = useState("");
   const [status, setStatus] = useState<Customer["status"]>("Lead");
 
+  const speech = useSpeech();
+  const [voicePrompt, setVoicePrompt] = useState("");
+  const [voiceRunning, setVoiceRunning] = useState(false);
+  const cancelledRef = useRef(false);
+  const hasAutoStartedRef = useRef(false);
+
   useEffect(() => {
     if (editingCustomer) {
       setName(editingCustomer.name);
@@ -66,10 +76,141 @@ export function CustomerFormDialog({
     }
   }, [editingCustomer, open]);
 
+  useEffect(() => {
+    if (open && !editingCustomer && speech.supported) {
+      if (!hasAutoStartedRef.current) {
+        hasAutoStartedRef.current = true;
+        runVoiceIntake();
+      }
+    } else {
+      hasAutoStartedRef.current = false;
+    }
+    if (!open) {
+      cancelledRef.current = true;
+      speech.stop();
+      setVoiceRunning(false);
+      setVoicePrompt("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editingCustomer]);
+
+  function trySave(data: {
+    name: string;
+    email: string;
+    phone: string;
+    company: string;
+    status: Customer["status"];
+  }) {
+    if (!data.name.trim() || !data.email.trim() || !data.phone.trim() || !data.company.trim()) return;
+    onSave(data);
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !phone.trim() || !company.trim()) return;
-    onSave({ name, email, phone, company, status });
+    trySave({ name, email, phone, company, status });
+  }
+
+  function stopVoice() {
+    cancelledRef.current = true;
+    speech.stop();
+    setVoiceRunning(false);
+    setVoicePrompt("");
+  }
+
+  async function runVoiceIntake() {
+    cancelledRef.current = false;
+    setVoiceRunning(true);
+
+    async function ask(prompt: string) {
+      setVoicePrompt(prompt);
+      await speech.speak(prompt);
+      if (cancelledRef.current) return "";
+      return speech.listen();
+    }
+
+    async function askWithRetry(prompt: string, retryPrompt: string) {
+      const heard = await ask(prompt);
+      if (cancelledRef.current || heard.trim()) return heard;
+      return ask(retryPrompt);
+    }
+
+    const nameHeard = await askWithRetry(
+      "Let's add a new customer. What is their name?",
+      "Sorry, I didn't catch that. Please say the customer's name."
+    );
+    if (cancelledRef.current) return setVoiceRunning(false);
+    const collectedName = nameHeard.trim();
+    setName(collectedName);
+
+    const emailHeard = await askWithRetry(
+      `Got it${collectedName ? ", " + collectedName : ""}. What is their email address?`,
+      "Sorry, I didn't catch the email. Please say it again, for example jane at company dot com."
+    );
+    if (cancelledRef.current) return setVoiceRunning(false);
+    const collectedEmail = parseSpokenEmail(emailHeard);
+    setEmail(collectedEmail);
+
+    const phoneHeard = await askWithRetry(
+      "Next, what is their phone number?",
+      "Sorry, I didn't catch that. Please say the phone number again."
+    );
+    if (cancelledRef.current) return setVoiceRunning(false);
+    const collectedPhone = parseSpokenPhone(phoneHeard);
+    setPhone(collectedPhone);
+
+    const companyHeard = await askWithRetry(
+      "What company do they work for?",
+      "Sorry, I didn't catch the company name. Please say it again."
+    );
+    if (cancelledRef.current) return setVoiceRunning(false);
+    const collectedCompany = companyHeard.trim();
+    setCompany(collectedCompany);
+
+    // Status is a closed set, so retry with an explicit list instead of free text.
+    let parsedStatus: Customer["status"] | null = null;
+    for (let attempt = 0; attempt < 2 && !parsedStatus && !cancelledRef.current; attempt++) {
+      const prompt =
+        attempt === 0
+          ? "And what is their status? Say lead, active, or churned."
+          : "Sorry, I need one of: lead, active, or churned. Which one is it?";
+      parsedStatus = parseSpokenStatus(await ask(prompt));
+    }
+    if (cancelledRef.current) return setVoiceRunning(false);
+    const collectedStatus = parsedStatus ?? "Lead";
+    setStatus(collectedStatus);
+
+    const isValid =
+      collectedName.length > 0 &&
+      collectedEmail.includes("@") &&
+      PHONE_REGEX.test(collectedPhone) &&
+      collectedCompany.length > 0;
+
+    if (!isValid) {
+      const note = "I've filled in what I could hear. Please review and correct any fields, then click Add Customer.";
+      setVoicePrompt(note);
+      await speech.speak(note);
+      setVoiceRunning(false);
+      return;
+    }
+
+    const confirmHeard = await ask(
+      `Here's what I have: name ${collectedName}, email ${collectedEmail}, phone ${collectedPhone}, company ${collectedCompany}, status ${collectedStatus}. Say yes to save, or no to review it yourself.`
+    );
+    if (cancelledRef.current) return setVoiceRunning(false);
+
+    setVoiceRunning(false);
+    if (/\b(yes|yeah|yep|correct|confirm|save)\b/i.test(confirmHeard)) {
+      setVoicePrompt("Saved!");
+      trySave({
+        name: collectedName,
+        email: collectedEmail,
+        phone: collectedPhone,
+        company: collectedCompany,
+        status: collectedStatus,
+      });
+    } else {
+      setVoicePrompt("Okay — the form is filled in. Edit anything you need, then click Add Customer.");
+    }
   }
 
   return (
@@ -78,6 +219,45 @@ export function CustomerFormDialog({
         <DialogHeader>
           <DialogTitle>{editingCustomer ? "Edit Customer" : "Add Customer"}</DialogTitle>
         </DialogHeader>
+        {!editingCustomer && (
+          <div className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
+            {speech.supported ? (
+              <>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  {speech.status === "listening" ? (
+                    <Mic className="h-4 w-4 shrink-0 animate-pulse text-primary" />
+                  ) : speech.status === "speaking" ? (
+                    <Volume2 className="h-4 w-4 shrink-0 animate-pulse text-primary" />
+                  ) : (
+                    <Mic className="h-4 w-4 shrink-0" />
+                  )}
+                  <span>{voicePrompt || "Starting voice input…"}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={voiceRunning ? stopVoice : () => runVoiceIntake()}
+                  className="shrink-0"
+                >
+                  {voiceRunning ? (
+                    <>
+                      <MicOff className="mr-1 h-3.5 w-3.5" /> Stop
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="mr-1 h-3.5 w-3.5" /> Restart Voice
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <span className="text-muted-foreground">
+                Voice input isn&apos;t supported in this browser — try Chrome or Edge, or fill the form in manually.
+              </span>
+            )}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="name">Name</Label>
